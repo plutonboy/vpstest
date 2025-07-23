@@ -1,21 +1,45 @@
-name: Windows - RustDesk
+name: Windows – Install RustDesk & Run Script
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Start Building...
+  setup:
+    name: Install & Launch RustDesk
     runs-on: windows-latest
-    
+
     steps:
-      - name: Downloading & Installing Essentials
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Chocolatey (if missing)
+        shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/qdyd4p9t6xoabl95n5o3g/Downloads.bat?rlkey=snr74vv1vr8k5suujugvrhjtm&dl=1" -OutFile "Downloads.bat"
+          if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+          }
+
+      - name: Install RustDesk via Chocolatey
+        shell: pwsh
+        run: |
+          choco upgrade rustdesk.install -y --no-progress
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "RustDesk install failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+      - name: Download Essentials via batch
+        shell: cmd
+        run: |
+          wget "https://www.dropbox.com/scl/fi/qdyd4p9t6xoabl95n5o3g/Downloads.bat?rlkey=snr74vv1vr8k5suujugvrhjtm&dl=1" -OutFile Downloads.bat
           cmd /c Downloads.bat
 
-      - name: Log In To AnyDesk
+      - name: Log in using AnyDesk script
+        shell: cmd
         run: cmd /c show.bat
 
-      - name: Time Counter
-        run: python time.py
+      - name: Run time counter script
+        shell: pwsh
+        run: |
+          python time.py
